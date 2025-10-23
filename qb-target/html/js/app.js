@@ -9,13 +9,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const targetLabel = document.getElementById("target-label");
     const TargetEyeStyleObject = targetEye.style;
 
+    let activeOptionKeys = [];
+
+    function resetOptions() {
+        targetLabel.textContent = "";
+        activeOptionKeys = [];
+    }
+
     function OpenTarget() {
         // No central eye; only clear label area
-        targetLabel.textContent = "";
+        resetOptions();
     }
 
     function CloseTarget() {
-        targetLabel.textContent = "";
+        resetOptions();
         targetEye.style.display = "none";
     }
 
@@ -47,24 +54,40 @@ document.addEventListener("DOMContentLoaded", function () {
         return null;
     }
 
-    function FoundTarget(item) {
-        // Only render clickable options; no eye icon behavior
-        targetLabel.textContent = "";
-        for (let [index, itemData] of Object.entries(item.options)) {
+    function renderOptions(collection) {
+        resetOptions();
+        for (let [index, itemData] of Object.entries(collection || {})) {
+            activeOptionKeys.push(index);
             createTargetOption(index, itemData);
         }
     }
 
+    function FoundTarget(item) {
+        // Only render clickable options; no eye icon behavior
+        renderOptions(item.options);
+    }
+
     function ValidTarget(item) {
-        targetLabel.textContent = "";
-        for (let [index, itemData] of Object.entries(item.data)) {
-            createTargetOption(index, itemData);
-        }
+        renderOptions(item.data);
     }
 
     function LeftTarget() {
         // Clear options; eye is not used
-        targetLabel.textContent = "";
+        resetOptions();
+    }
+
+    function selectOption(optionIndex) {
+        if (!optionIndex) {
+            return;
+        }
+
+        fetch(`https://${GetParentResourceName()}/selectTarget`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=UTF-8" },
+            body: JSON.stringify(optionIndex),
+        }).catch((error) => console.error("Error:", error));
+
+        resetOptions();
     }
 
     function handleMouseDown(event) {
@@ -76,12 +99,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const optionIndex = findTargetOption(event.target);
         if (optionIndex) {
-            fetch(`https://${GetParentResourceName()}/selectTarget`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json; charset=UTF-8" },
-                body: JSON.stringify(optionIndex),
-            }).catch((error) => console.error("Error:", error));
-            targetLabel.textContent = "";
+            selectOption(optionIndex);
+            return;
+        }
+
+        if (activeOptionKeys.length === 1) {
+            selectOption(activeOptionKeys[0]);
             return;
         }
 
